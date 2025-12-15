@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ana's Vibe</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;1,400&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2d1b69 0%, #11998e 50%, #38ef7d 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            overflow: hidden;
+            font-family: 'Cormorant Garamond', serif;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 1.2rem;
+            z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            color: #ffffff;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        .quote-container {
+            position: absolute;
+            animation: drift 30s ease-in-out infinite;
+        }
+
+        @keyframes drift {
+            0% {
+                top: 30%;
+                left: 10%;
+                transform: rotate(-2deg);
+            }
+
+            25% {
+                top: 40%;
+                left: 60%;
+                transform: rotate(1deg);
+            }
+
+            50% {
+                top: 20%;
+                left: 70%;
+                transform: rotate(-1deg);
+            }
+
+            75% {
+                top: 50%;
+                left: 30%;
+                transform: rotate(2deg);
+            }
+
+            100% {
+                top: 30%;
+                left: 10%;
+                transform: rotate(-2deg);
+            }
+        }
+
+        .quote {
+            font-size: 2.5rem;
+            font-style: italic;
+            color: #ffffff;
+            text-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+            max-width: 500px;
+            line-height: 1.6;
+            animation: glow 4s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+
+            0%,
+            100% {
+                text-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+            }
+
+            50% {
+                text-shadow: 0 0 60px rgba(255, 255, 255, 0.6), 0 0 80px rgba(56, 239, 125, 0.3);
+            }
+        }
+
+        .author {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.7);
+            text-align: right;
+        }
+
+        /* Floating particles */
+        .particle {
+            position: fixed;
+            width: 6px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            animation: float 20s infinite;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="../index.html" class="back-link">← Volver</a>
+
+    <div class="quote-container">
+        <p class="quote">"The only way to do great work is to love what you do."</p>
+        <p class="author">— Steve Jobs</p>
+    </div>
+
+    <!-- Dreamy floating particles -->
+    <div class="particle" style="left: 10%; animation-delay: 0s;"></div>
+    <div class="particle" style="left: 20%; animation-delay: 2s;"></div>
+    <div class="particle" style="left: 30%; animation-delay: 4s;"></div>
+    <div class="particle" style="left: 40%; animation-delay: 6s;"></div>
+    <div class="particle" style="left: 50%; animation-delay: 8s;"></div>
+    <div class="particle" style="left: 60%; animation-delay: 10s;"></div>
+    <div class="particle" style="left: 70%; animation-delay: 12s;"></div>
+    <div class="particle" style="left: 80%; animation-delay: 14s;"></div>
+    <div class="particle" style="left: 90%; animation-delay: 16s;"></div>
+</body>
+
+</html>
