@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meteor Shower - Juan2</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0d0d15;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.2);
+            border: 2px solid #333;
+            background: radial-gradient(circle at center, #1a1a2e 0%, #000 100%);
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);
+        }
+
+        #score-display {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        #time-display {
+            font-size: 16px;
+            color: #aaa;
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 40px;
+            border-radius: 10px;
+            border: 1px solid #ff4444;
+            display: none;
+            backdrop-filter: blur(5px);
+        }
+
+        #game-over h1 {
+            color: #ff4444;
+            font-size: 48px;
+            margin: 0 0 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+
+        button {
+            background: transparent;
+            border: 2px solid #00ffff;
+            color: #00ffff;
+            padding: 15px 30px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            background: #00ffff;
+            color: black;
+            box-shadow: 0 0 20px #00ffff;
+        }
+
+        .back-link {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 16px;
+            z-index: 100;
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: #00ffff;
+            color: #00ffff;
+        }
+
+        /* Subtle grid background animation */
+        .grid-bg {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="../index.html" class="back-link">← Volver</a>
+
+    <div id="game-container">
+        <div class="grid-bg"></div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="ui-layer">
+            <div id="score-display">Score: 0</div>
+            <div id="time-display">Time: 0s</div>
+        </div>
+        <div id="game-over">
+            <h1>Game Over</h1>
+            <p id="final-score">Score: 0</p>
+            <br>
+            <button onclick="restartGame()">Reintentar</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score-display');
+        const timeEl = document.getElementById('time-display');
+        const gameOverEl = document.getElementById('game-over');
+        const finalScoreEl = document.getElementById('final-score');
+
+        // Game State
+        let isGameOver = false;
+        let score = 0;
+        let startTime = 0;
+        let lastFrameTime = 0;
+
+        // Player
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 15,
+            speed: 300, // pixels per second
+            color: '#00ffff',
+            dx: 0,
+            dy: 0
+        };
+
+        // Input
+        const keys = {
+            w: false, a: false, s: false, d: false,
+            ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false
+        };
+
+        // Meteor system
+        let meteors = [];
+        const baseSpawnRate = 1000; // ms
+        let nextSpawnTime = 0;
+
+        // Input handlers
+        window.addEventListener('keydown', (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+        });
+
+        function restartGame() {
+            isGameOver = false;
+            gameOverEl.style.display = 'none';
+            meteors = [];
+            score = 0;
+            startTime = Date.now();
+            nextSpawnTime = startTime;
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+            requestAnimationFrame(gameLoop);
+        }
+
+        function createMeteor(currentTime) {
+            const warningDuration = 2000; // Time from shadow start to impact
+            return {
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: Math.random() * (canvas.height - 40) + 20,
+                impactTime: currentTime + warningDuration,
+                radius: 20 + Math.random() * 25, // Randomize size
+                active: true
+            };
+        }
+
+        function update(deltaTime, currentTime) {
+            if (isGameOver) return;
+
+            // Update Score based on survival time
+            const elapsed = (currentTime - startTime) / 1000;
+            score = Math.floor(elapsed * 100);
+            scoreEl.textContent = `Score: ${score}`;
+            timeEl.textContent = `Time: ${elapsed.toFixed(1)}s`;
+
+            // Difficulty: Spawn rate speeds up
+            // Example: Every 10 seconds, spawn rate decreases by 100ms, capped at 200ms
+            const difficultyMultiplier = Math.min(Math.floor(elapsed / 5), 8); // Increases every 5s
+            const currentSpawnRate = Math.max(200, baseSpawnRate - (difficultyMultiplier * 100));
+
+            // Spawn Meteors
+            if (currentTime > nextSpawnTime) {
+                meteors.push(createMeteor(currentTime));
+                nextSpawnTime = currentTime + currentSpawnRate;
+            }
+
+            // Move Player
+            player.dx = 0;
+            player.dy = 0;
+            if (keys.w || keys.ArrowUp) player.dy = -1;
+            if (keys.s || keys.ArrowDown) player.dy = 1;
+            if (keys.a || keys.ArrowLeft) player.dx = -1;
+            if (keys.d || keys.ArrowRight) player.dx = 1;
+
+            // Normalize diagonal movement
+            if (player.dx !== 0 || player.dy !== 0) {
+                const length = Math.sqrt(player.dx * player.dx + player.dy * player.dy);
+                player.dx /= length;
+                player.dy /= length;
+            }
+
+            player.x += player.dx * player.speed * deltaTime;
+            player.y += player.dy * player.speed * deltaTime;
+
+            // Boundary checks
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
+
+            // Update Meteors & Collision
+            meteors = meteors.filter(m => {
+                const timeUntilImpact = m.impactTime - currentTime;
+
+                if (timeUntilImpact <= 0) {
+                    // Impact!
+                    // Check collision frame (give 100ms lingering hit box or just instantaneous?)
+                    // Let's make it hit exactly at 0 and linger for a split second (explosion effect)
+
+                    // Simple circle collision check
+                    const dist = Math.hypot(player.x - m.x, player.y - m.y);
+                    if (dist < (player.radius + m.radius)) {
+                        gameOver();
+                    }
+
+                    // Remove if impact animation is done (we'll just remove immediately for simplicity 
+                    // unless we add an explosion particle system, which is complex for now. 
+                    // Let's keep it active for a few frames to show the hit?)
+                    // Actually, let's keep it "alive" for 200ms after impact as a 'damage zone'
+                    if (timeUntilImpact < -200) return false;
+                    return true;
+                }
+                return true;
+            });
+
+            // Re-check collision for lingering explosions
+            meteors.forEach(m => {
+                if (m.impactTime <= currentTime) {
+                    const dist = Math.hypot(player.x - m.x, player.y - m.y);
+                    if (dist < (player.radius + m.radius)) {
+                        gameOver();
+                    }
+                }
+            });
+        }
+
+        function draw(currentTime) {
+            // Clear
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Meteors (Shadows & Projectiles)
+            meteors.forEach(m => {
+                const timeUntilImpact = m.impactTime - currentTime;
+
+                if (timeUntilImpact > 0) {
+                    // It's falling
+                    // Shadow logic: grows and gets darker
+                    const progress = 1 - (timeUntilImpact / 2000); // 0 to 1
+
+                    // Draw Shadow
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(m.x, m.y, m.radius * progress, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(255, 68, 68, ${0.1 + (progress * 0.4)})`; // Reddish shadow
+                    ctx.fill();
+                    ctx.restore();
+
+                    // Draw Meteor (Falling from 'height')
+                    // Let's simulate height by drawing the meteor with a Y offset that decreases
+                    const height = timeUntilImpact * 0.5; // Arbitrary height scale
+
+                    ctx.save();
+                    ctx.beginPath();
+                    // Draw the "meteor" above the shadow
+                    ctx.arc(m.x, m.y - height, m.radius * 0.8, 0, Math.PI * 2);
+
+                    // Gradient for the meteor
+                    const grad = ctx.createRadialGradient(m.x, m.y - height, 5, m.x, m.y - height, m.radius);
+                    grad.addColorStop(0, '#fff');
+                    grad.addColorStop(0.5, '#ffaa00');
+                    grad.addColorStop(1, '#550000');
+
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+
+                    // Add a trail?
+                    ctx.restore();
+                } else {
+                    // Impact / Explosion
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.globalAlpha = 1 - (Math.abs(timeUntilImpact) / 200); // Fade out
+                    ctx.fill();
+                    ctx.restore();
+                }
+            });
+
+            // Draw Player
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            // Glow
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = player.color;
+
+            ctx.beginPath();
+            ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = player.color;
+            ctx.fill();
+
+            // Simple inner detail to look like a "person" or "ship"
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(0, -5, 5, 0, Math.PI * 2); // Head/Cockpit
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function gameOver() {
+            if (isGameOver) return;
+            isGameOver = true;
+            finalScoreEl.textContent = `Score: ${score}`;
+            gameOverEl.style.display = 'block';
+        }
+
+        function gameLoop(timestamp) {
+            if (!lastFrameTime) lastFrameTime = timestamp;
+            const deltaTime = (timestamp - lastFrameTime) / 1000;
+            lastFrameTime = timestamp;
+
+            const currentTime = Date.now();
+
+            update(deltaTime, currentTime);
+            draw(currentTime);
+
+            if (!isGameOver) {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // Start
+        startTime = Date.now();
+        nextSpawnTime = startTime + 1000;
+        requestAnimationFrame(gameLoop);
+
+    </script>
+</body>
+
+</html>
